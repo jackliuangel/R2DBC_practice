@@ -1,0 +1,2 @@
+CREATE TABLE customer (id SERIAL PRIMARY KEY, first_name VARCHAR(255), last_name VARCHAR(255));
+CREATE TABLE account (id SERIAL PRIMARY KEY, account_number VARCHAR(255), first_name VARCHAR(255), last_name VARCHAR(255), owner VARCHAR(255), balance DECIMAL);

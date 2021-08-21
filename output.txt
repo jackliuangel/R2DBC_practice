@@ -1,0 +1,27 @@
+2021-05-03 23:44:42.198  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Accounts found with findAll():
+2021-05-03 23:44:42.200  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=1, accountNumber='123456789', owner='Jack Bauer', firstName='Jack', lastName='Bauer', balance=500.5}
+2021-05-03 23:44:42.200  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=2, accountNumber='987654327', owner='Chloe Brian', firstName='Chloe', lastName='Brian', balance=10000000}
+2021-05-03 23:44:42.201  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=3, accountNumber='123454127', owner='Kim Bauer', firstName='Kim', lastName='Bauer', balance=99999}
+2021-05-03 23:44:42.201  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=4, accountNumber='772345632', owner='David Palmer', firstName='David', lastName='Palmer', balance=300}
+2021-05-03 23:44:42.201  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=5, accountNumber='876434544', owner='David Xuani', firstName='David', lastName='Xuani', balance=300}
+2021-05-03 23:44:42.201  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=6, accountNumber='123123123', owner='David Hoi', firstName='David', lastName='Hoi', balance=300}
+2021-05-03 23:44:42.201  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=7, accountNumber='876543442', owner='Michelle Dessler', firstName='Michelle', lastName='Dessler', balance=400}
+2021-05-03 23:44:42.202  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : 
+2021-05-03 23:44:42.204  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Accounts found with findById(1L):
+2021-05-03 23:44:42.204  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=1, accountNumber='123456789', owner='Jack Bauer', firstName='Jack', lastName='Bauer', balance=500.5}
+
+2021-05-03 23:44:42.204  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : findByLastName
+2021-05-03 23:44:42.206  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=1, accountNumber='123456789', owner='Jack Bauer', firstName='Jack', lastName='Bauer', balance=500.5}
+2021-05-03 23:44:42.206  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=3, accountNumber='123454127', owner='Kim Bauer', firstName='Kim', lastName='Bauer', balance=99999}
+
+2021-05-03 23:44:42.206  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : findByTop2Balance
+2021-05-03 23:44:42.213  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=2, accountNumber='987654327', owner='Chloe Brian', firstName='Chloe', lastName='Brian', balance=10000000}
+2021-05-03 23:44:42.213  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=3, accountNumber='123454127', owner='Kim Bauer', firstName='Kim', lastName='Bauer', balance=99999}
+
+2021-05-03 23:44:42.214  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : findByOwnerStartingWith
+2021-05-03 23:44:42.218  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=4, accountNumber='772345632', owner='David Palmer', firstName='David', lastName='Palmer', balance=300}
+2021-05-03 23:44:42.219  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=5, accountNumber='876434544', owner='David Xuani', firstName='David', lastName='Xuani', balance=300}
+2021-05-03 23:44:42.219  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : Account{id=6, accountNumber='123123123', owner='David Hoi', firstName='David', lastName='Hoi', balance=300}
+2021-05-03 23:44:42.219  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : deleteById2
+2021-05-03 23:44:42.227  INFO 3384 --- [           main] c.e.a.AccessingDataR2dbcApplication      : 1
+
