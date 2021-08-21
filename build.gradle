@@ -13,12 +13,13 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
     compileOnly 'org.projectlombok:lombok:1.18.20'
+    compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.29'
+    compile "org.springframework.boot:spring-boot-configuration-processor"
+    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
     annotationProcessor 'org.projectlombok:lombok:1.18.20'
-    
-    runtimeOnly 'com.h2database:h2'
-//    runtimeOnly 'com.h2database:postgresql'
+
+//    runtimeOnly 'com.h2database:h2'
     runtimeOnly 'io.r2dbc:r2dbc-h2'
     runtimeOnly 'io.r2dbc:r2dbc-postgresql'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

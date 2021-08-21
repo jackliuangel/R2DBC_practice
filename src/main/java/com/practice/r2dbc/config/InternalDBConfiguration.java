@@ -1,12 +1,11 @@
 package com.practice.r2dbc.config;
 
+import com.practice.r2dbc.db.internal.InternalConfigurationProperties;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.r2dbc.core.DefaultReactiveDataAccessStrategy;
@@ -24,19 +23,18 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 @EnableR2dbcRepositories(basePackages = "com.practice.r2dbc.db.internal", entityOperationsRef = "internalR2dbcEntityOperations")
 public class InternalDBConfiguration {
 
-    @Autowired
-    private ConfigurableApplicationContext context;
-
     @Bean
     @Qualifier("internalDatasource")
     @ConfigurationProperties("spring.datasource.internal")
-    public ConnectionFactory internalConnectionFactory() {
+    public ConnectionFactory internalConnectionFactory(InternalConfigurationProperties internalConfigurationProperties) {
         ConnectionFactoryOptions baseOptions
-                = ConnectionFactoryOptions.parse("r2dbc:postgresql://localhost:5432/vpn_port_db");
+                = ConnectionFactoryOptions.parse(internalConfigurationProperties.getUrl());
         ConnectionFactoryOptions connectionBuilder
                 = ConnectionFactoryOptions.builder()
                                           .from(baseOptions)
-                                          .option(USER, "admin").option(PASSWORD, "admin").build();
+                                          .option(USER, internalConfigurationProperties.getUsername())
+                                          .option(PASSWORD, internalConfigurationProperties.getPassword())
+                                          .build();
         return ConnectionFactories.get(connectionBuilder);
     }
 

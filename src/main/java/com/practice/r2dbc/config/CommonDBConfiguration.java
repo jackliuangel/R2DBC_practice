@@ -1,12 +1,10 @@
 package com.practice.r2dbc.config;
 
+import com.practice.r2dbc.db.common.CommonConfigurationProperties;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -23,22 +21,19 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 
 @Configuration
 @EnableR2dbcRepositories(basePackages = "com.practice.r2dbc.db.common", entityOperationsRef = "commonR2dbcEntityOperations")
-@ConfigurationProperties(prefix = "spring.datasource")
 public class CommonDBConfiguration {
-
-    @Autowired
-    private ConfigurableApplicationContext context;
 
     @Bean
     @Qualifier("commonDatasource")
-    @ConfigurationProperties("spring.datasource.common")
-    public ConnectionFactory mainConnectionFactory() {
+    public ConnectionFactory mainConnectionFactory(CommonConfigurationProperties commonConfigurationProperties) {
         ConnectionFactoryOptions baseOptions
-                = ConnectionFactoryOptions.parse("r2dbc:postgresql://localhost:5432/vpn_port_audit_db");
+                = ConnectionFactoryOptions.parse(commonConfigurationProperties.getUrl());
         ConnectionFactoryOptions connectionBuilder
                 = ConnectionFactoryOptions.builder()
                                           .from(baseOptions)
-                                          .option(USER, "admin").option(PASSWORD, "admin").build();
+                                          .option(USER, commonConfigurationProperties.getUsername())
+                                          .option(PASSWORD, commonConfigurationProperties.getPassword())
+                                          .build();
         return ConnectionFactories.get(connectionBuilder);
     }
 

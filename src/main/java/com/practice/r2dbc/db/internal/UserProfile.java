@@ -1,15 +1,12 @@
 package com.practice.r2dbc.db.internal;
 
 
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.context.annotation.Profile;
 
 
-//@Profile({"JWT", "OAuth2Github"})
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

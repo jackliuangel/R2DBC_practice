@@ -12,7 +12,6 @@ import org.springframework.data.relational.core.mapping.Column;
 
 import java.time.LocalDateTime;
 
-//@Profile({"JWT", "OAuth2Github"})
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
