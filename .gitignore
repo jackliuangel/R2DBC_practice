@@ -21,3 +21,17 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+/.idea/.name
+.DS_Store
+.gradle/
+.idea/.name
+.idea/workspace.xml
+out/.DS_Store
+out/production/.DS_Store
+out/production/classes/META-INF/
+out/production/classes/generated/
+out/production/resources/
+out/test/classes/generated_tests/
+out/test/resources/
+src/.DS_Store
+src/test/.DS_Store
