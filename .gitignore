@@ -35,3 +35,7 @@ out/test/classes/generated_tests/
 out/test/resources/
 src/.DS_Store
 src/test/.DS_Store
+.idea/dataSources.local.xml
+.idea/dataSources/
+build/generated/
+build/tmp/
