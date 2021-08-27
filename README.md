@@ -17,4 +17,5 @@ run #R2dbcPracticeApplication
 
 # Reference
 https://github.com/hantsy/spring-puzzles/blob/master/multi-r2dbc-connectionfactories
+https://github.com/spring-guides/gs-accessing-data-r2dbc/tree/main/complete
 
