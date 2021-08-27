@@ -16,6 +16,7 @@ provide 2 DB sources, H2 or Postgreq preferred, by docker preferred
 run #R2dbcPracticeApplication
 
 # Reference
+https://github.com/aanky19jain/SpringBoot-Postgres-R2dbc-MultiDataSource-Demo
 https://github.com/hantsy/spring-puzzles/blob/master/multi-r2dbc-connectionfactories
-https://github.com/spring-guides/gs-accessing-data-r2dbc/tree/main/complete
+https://github.com/barojin/R2DBC_practice/tree/main/src
 

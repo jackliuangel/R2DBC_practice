@@ -1,3 +1,12 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'io.github.robwin:jgitflow-gradle-plugin:0.6.0'
+    }
+}
 
 plugins {
     id 'org.springframework.boot' version '2.5.4'
@@ -12,6 +21,9 @@ sourceCompatibility = '1.8'
 repositories {
     mavenCentral()
 }
+//
+//apply plugin: 'application'
+//mainClassName = 'com.practice.r2dbc.R2dbcPracticeApplication'
 
 dependencies {
     implementation 'org.projectlombok:lombok:1.18.20'
@@ -31,3 +43,6 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+apply plugin: 'io.github.robwin.jgitflow'
+

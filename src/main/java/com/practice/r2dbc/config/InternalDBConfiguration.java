@@ -24,7 +24,7 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 public class InternalDBConfiguration {
 
     @Bean
-    @Qualifier("internalDatasource")
+    @Qualifier("internalConnectionFactory")
     @ConfigurationProperties("spring.datasource.internal")
     public ConnectionFactory internalConnectionFactory(InternalConfigurationProperties internalConfigurationProperties) {
         ConnectionFactoryOptions baseOptions
@@ -39,8 +39,8 @@ public class InternalDBConfiguration {
     }
 
 
-    @Bean
-    public R2dbcEntityOperations internalR2dbcEntityOperations(@Qualifier("internalDatasource") ConnectionFactory connectionFactory) {
+    @Bean("internalR2dbcEntityOperations")
+    public R2dbcEntityOperations internalR2dbcEntityOperations(@Qualifier("internalConnectionFactory") ConnectionFactory connectionFactory) {
         DefaultReactiveDataAccessStrategy strategy = new DefaultReactiveDataAccessStrategy(PostgresDialect.INSTANCE);
         DatabaseClient databaseClient = DatabaseClient.builder()
                                                       .connectionFactory(connectionFactory)

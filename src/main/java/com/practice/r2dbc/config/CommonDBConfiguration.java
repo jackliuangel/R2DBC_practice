@@ -24,8 +24,8 @@ import static io.r2dbc.spi.ConnectionFactoryOptions.USER;
 public class CommonDBConfiguration {
 
     @Bean
-    @Qualifier("commonDatasource")
-    public ConnectionFactory mainConnectionFactory(CommonConfigurationProperties commonConfigurationProperties) {
+    @Qualifier("commonConnectionFactory")
+    public ConnectionFactory commonConnectionFactory(CommonConfigurationProperties commonConfigurationProperties) {
         ConnectionFactoryOptions baseOptions
                 = ConnectionFactoryOptions.parse(commonConfigurationProperties.getUrl());
         ConnectionFactoryOptions connectionBuilder
@@ -39,8 +39,8 @@ public class CommonDBConfiguration {
 
 
     @Primary
-    @Bean
-    public R2dbcEntityOperations commonR2dbcEntityOperations(@Qualifier("commonDatasource") ConnectionFactory connectionFactory) {
+    @Bean("commonR2dbcEntityOperations")
+    public R2dbcEntityOperations commonR2dbcEntityOperations(@Qualifier("commonConnectionFactory") ConnectionFactory connectionFactory) {
         DefaultReactiveDataAccessStrategy strategy = new DefaultReactiveDataAccessStrategy(PostgresDialect.INSTANCE);
         DatabaseClient databaseClient = DatabaseClient.builder()
                                                       .connectionFactory(connectionFactory)
@@ -49,4 +49,5 @@ public class CommonDBConfiguration {
 
         return new R2dbcEntityTemplate(databaseClient, strategy);
     }
+
 }
