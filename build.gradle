@@ -47,3 +47,4 @@ test {
 }
 
 apply plugin: 'io.github.robwin.jgitflow'
+
