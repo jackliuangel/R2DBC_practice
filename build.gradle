@@ -22,9 +22,9 @@ sourceCompatibility = '1.8'
 repositories {
     mavenCentral()
 }
-//
-//apply plugin: 'application'
-//mainClassName = 'com.practice.r2dbc.R2dbcPracticeApplication'
+
+apply plugin: 'application'
+mainClassName = 'com.practice.r2dbc.R2dbcPracticeApplication'
 
 dependencies {
     implementation 'org.projectlombok:lombok:1.18.20'
