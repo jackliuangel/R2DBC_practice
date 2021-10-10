@@ -1,0 +1,617 @@
+---
+orbs:
+  aws-cli: circleci/aws-cli@2.0.3
+  aws-ecr: circleci/aws-ecr@6.12.2
+  aws-eks: circleci/aws-eks@1.0.1
+  kubernetes: circleci/kubernetes@0.11.1
+  jq: circleci/jq@2.2
+version: 2.1
+alias:
+  - &release-only
+    branches:
+      ignore: /.*/
+    tags:
+      only: /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  - &release-and-pre-release-only
+    branches:
+      ignore: /.*/
+    tags:
+      only: /^v[0-9]+\.[0-9]+\.[0-9]+(\-[0-9a-zA-Z]+)?$/
+  - &not-release
+    tags:
+      ignore: /^v[0-9]+\.[0-9]+\.[0-9]+(\-[0-9a-zA-Z]+)?$/
+  - &master-only
+    branches:
+      only: master
+  - &develop-only
+    branches:
+      only: develop
+executors:
+  default-executor:
+    docker:
+      - image: cimg/base:2020.01
+    working_directory: /home/circleci/app
+junit: &junit
+  working_directory: ~/repo
+  steps:
+    - run:
+        name: Update system
+        command: |
+          sudo apt update
+          sudo apt upgrade
+    - checkout
+    - restore_cache:
+        keys:
+          - v1-dependencies-{{ checksum "build.gradle" }}
+          - v1-dependencies-
+    - run: ./gradlew dependencies
+    - run: ./gradlew build
+    - run:
+        name: Save test results
+        command: |
+          mkdir -p ~/junit/
+          find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/junit/ \;
+        when: always
+    - store_test_results:
+        path: ~/junit
+        when: always
+    - run:
+        name: aggregate subprojects reports
+        command: |
+          find . -type d -name "reports" | sed -E 's|^(\./(.+)/build/reports)$|\1 \2|' | sort | uniq | xargs -L1 bash -c 'mkdir -p ./reports/$1 && cp -R $0/ ./reports/$1/'
+    - store_artifacts:
+        path: ./reports
+        when: always
+    - save_cache:
+        paths:
+          - ~/.gradle
+        key: v1-dependencies-{{ checksum "build.gradle" }}
+jobs:
+  gitflow:
+    docker:
+      - image: circleci/openjdk:11-jdk
+    steps:
+      - run:
+          name: Update system
+          command: |
+            sudo apt update
+            sudo apt upgrade
+      - jq/install:
+          when: always
+      - run: |
+          mkdir -p '/home/circleci/projecttest'
+          cd '/home/circleci/projecttest'
+          git clone https://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@github.com/monacohq/$CIRCLE_PROJECT_REPONAME.git
+          cd ${CIRCLE_PROJECT_REPONAME}
+          git status
+          pwd
+          git config --global user.email "test@111.com"
+          git config --global user.name "test"
+  current_version=$(cat version.json|jq .)
+  release_version=$(cat version.json|jq 'del(.label)')
+  next_version=$(cat version.json|jq '.patchVersion+=1')
+  master_tag=$(cat version.json|jq -r '(.majorVersion|tostring)+"."+(.minorVersion|tostring)+"."+(.patchVersion|tostring)')
+  echo $release_version > version.json
+  git status
+  git add .
+  git commit -m 'update the release version in master, and tag'
+  git status
+  git push
+  git tag -a $master_tag -m 'update the release version in master, and tag'
+  git push --tags
+  git checkout gitflow-dev
+  git merge master
+  echo $next_version > version.json
+  git status
+  git add .
+  git status
+  git commit -m 'update the snapshot version in develop'
+  git push
+junit:
+  <<: *junit
+  docker:
+    - image: circleci/openjdk:11-jdk
+code-quality:
+  docker:
+    - image: circleci/openjdk:11-jdk
+  working_directory: ~/repo
+  steps:
+    - run:
+        name: Update system
+        command: |
+          sudo apt update
+          sudo apt upgrade
+    - checkout
+    - restore_cache:
+        keys:
+          - v1-dependencies-{{ checksum "build.gradle" }}
+          - v1-dependencies-
+    - run: ./gradlew dependencies
+    - run: ./gradlew check -x test
+    - run:
+        name: aggregate subprojects reports
+        command: |
+          find . -type d -name "reports" | sed -E 's|^(\./(.+)/build/reports)$|\1 \2|' | sort | uniq | xargs -L1 bash -c 'mkdir -p ./reports/$1 && cp -R $0/ ./reports/$1/'
+    - store_artifacts:
+        path: ./reports
+        when: always
+    - save_cache:
+        paths:
+          - ~/.gradle
+        key: v1-dependencies-{{ checksum "build.gradle" }}
+build-and-push-docker-image:
+  docker:
+    - image: "circleci/python:3.7.6"
+      environment:
+        DOCKER_BUILDKIT: "1"
+  parameters:
+    repo:
+      description: |
+        Name of the EKS repo
+      type: string
+    tag:
+      type: string
+      default: "$CIRCLE_TAG"
+  steps:
+    - checkout
+    - run:
+        command: |
+          image_tag=$(cat version.json|jq -r '(.majorVersion|tostring)+"."+(.minorVersion|tostring)+"."+(.patchVersion|tostring)')
+          echo $image_tag
+          echo "export image_tag=\"$image_tag\"" >> $BASH_ENV
+          source $BASH_ENV
+    - setup_remote_docker:
+        docker_layer_caching: true
+        version: "18.09.3"
+    - run: docker version
+    - aws-ecr/build-and-push-image:
+        checkout: false
+        account-url: AWS_ECR_ACCOUNT_URL
+        aws-access-key-id: AWS_ECR_ACCESS_KEY_ID
+        aws-secret-access-key: AWS_ECR_SECRET_ACCESS_KEY
+        region: AWS_REGION
+        repo: "<< parameters.repo >>"
+        tag: "$image_tag"
+deployment:
+  executor: aws-eks/python3
+  parameters:
+    cluster-name:
+      default: 'eks-cluster'
+      description: |
+        Name of the EKS cluster
+      type: string
+    namespace:
+      default: 'default'
+      description: |
+        The kubernetes namespace that should be used.
+      type: string
+    resource-name:
+      default: ''
+      description: Resource name in the format TYPE/NAME, e.g. deployment/nginx
+      type: string
+    repo:
+      description: |
+        Name of the EKS repo
+      type: string
+    tag:
+      type: string
+      default: "$CIRCLE_TAG"
+    get-rollout-status:
+      default: false
+      description: |
+        Get the status of the rollout.
+        This can only be used for resource types that are valid
+        for usage with `kubectl rollout` subcommands.
+      type: boolean
+  steps:
+    - aws-eks/update-kubeconfig-with-authenticator:
+        cluster-name: << parameters.cluster-name >>
+        install-kubectl: true
+        aws-region: '${AWS_REGION}'
+        authenticator-release-tag: "v0.5.1"
+        verbose: true
+    - checkout
+    - run:
+        name: Preparing Build Environment Variables
+        command: |
+          K8S_NAMESPACE="<< parameters.namespace >>"
+          K8S_RESOURCE_NAME="<< parameters.resource-name >>"
+          APP_CONTAINERS="$(kubectl get << parameters.resource-name >> -n << parameters.namespace >> -o jsonpath="{.metadata.annotations.app-containers}")"
+          APP_IMAGE_REPO="$(kubectl get << parameters.resource-name >> -n << parameters.namespace >> -o jsonpath="{.metadata.annotations.app-image-repo}")"
+          APP_IMAGE_TAG=$(cat version.json|jq -r '(.majorVersion|tostring)+"."+(.minorVersion|tostring)+"."+(.patchVersion|tostring)')
+          CONTAINER_IMAGE_UPDATES="$(echo $APP_CONTAINERS | awk 'BEGIN{RS=" "} {printf "%s=\"${APP_IMAGE_REPO}:${APP_IMAGE_TAG}\" ", $1}')"
+          echo $K8S_NAMESPACE
+          echo $K8S_RESOURCE_NAME
+          echo $APP_CONTAINERS
+          echo $APP_IMAGE_REPO
+          echo $APP_IMAGE_TAG
+          echo $CONTAINER_IMAGE_UPDATES
+          echo "export K8S_NAMESPACE=\"$K8S_NAMESPACE\"" >> $BASH_ENV
+          echo "export K8S_RESOURCE_NAME=\"K8S_RESOURCE_NAME\"" >> $BASH_ENV
+          echo "export APP_CONTAINERS=\"$APP_CONTAINERS\"" >> $BASH_ENV
+          echo "export APP_IMAGE_REPO=\"$APP_IMAGE_REPO\"" >> $BASH_ENV
+          echo "export APP_IMAGE_TAG=\"$APP_IMAGE_TAG\"" >> $BASH_ENV
+          echo "export CONTAINER_IMAGE_UPDATES=\"$CONTAINER_IMAGE_UPDATES\"" >> $BASH_ENV
+          source $BASH_ENV
+    - kubernetes/update-container-image:
+        container-image-updates: '${CONTAINER_IMAGE_UPDATES}'
+        get-rollout-status: << parameters.get-rollout-status >>
+        record: true
+        namespace: << parameters.namespace >>
+        resource-name: << parameters.resource-name >>
+---
+orbs:
+  aws-cli: circleci/aws-cli@2.0.3
+  aws-ecr: circleci/aws-ecr@6.12.2
+  aws-eks: circleci/aws-eks@1.0.1
+  kubernetes: circleci/kubernetes@0.11.1
+  jq: circleci/jq@2.2
+version: 2.1
+alias:
+  - &release-only
+    branches:
+      ignore: /.*/
+    tags:
+      only: /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  - &release-and-pre-release-only
+    branches:
+      ignore: /.*/
+    tags:
+      only: /^v[0-9]+\.[0-9]+\.[0-9]+(\-[0-9a-zA-Z]+)?$/
+  - &not-release
+    tags:
+      ignore: /^v[0-9]+\.[0-9]+\.[0-9]+(\-[0-9a-zA-Z]+)?$/
+  - &master-only
+    branches:
+      only: master
+  - &develop-only
+    branches:
+      only: develop
+executors:
+  default-executor:
+    docker:
+      - image: cimg/base:2020.01
+    working_directory: /home/circleci/app
+junit: &junit
+  working_directory: ~/repo
+  steps:
+    - run:
+        name: Update system
+        command: |
+          sudo apt update
+          sudo apt upgrade
+    - checkout
+    - restore_cache:
+        keys:
+          - v1-dependencies-{{ checksum "build.gradle" }}
+          - v1-dependencies-
+    - run: ./gradlew dependencies
+    - run: ./gradlew build
+    - run:
+        name: Save test results
+        command: |
+          mkdir -p ~/junit/
+          find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/junit/ \;
+        when: always
+    - store_test_results:
+        path: ~/junit
+        when: always
+    - run:
+        name: aggregate subprojects reports
+        command: |
+          find . -type d -name "reports" | sed -E 's|^(\./(.+)/build/reports)$|\1 \2|' | sort | uniq | xargs -L1 bash -c 'mkdir -p ./reports/$1 && cp -R $0/ ./reports/$1/'
+    - store_artifacts:
+        path: ./reports
+        when: always
+    - save_cache:
+        paths:
+          - ~/.gradle
+        key: v1-dependencies-{{ checksum "build.gradle" }}
+jobs:
+  gitflow:
+    docker:
+      - image: circleci/openjdk:11-jdk
+    steps:
+      - run:
+          name: Update system
+          command: |
+            sudo apt update
+            sudo apt upgrade
+      - jq/install:
+          when: always
+      - run: |
+          mkdir -p '/home/circleci/projecttest'
+          cd '/home/circleci/projecttest'
+          git clone https://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@github.com/monacohq/$CIRCLE_PROJECT_REPONAME.git
+          cd ${CIRCLE_PROJECT_REPONAME}
+          git status
+          pwd
+          git config --global user.email "test@111.com"
+          git config --global user.name "test"
+  current_version=$(cat version.json|jq .)
+  release_version=$(cat version.json|jq 'del(.label)')
+  next_version=$(cat version.json|jq '.patchVersion+=1')
+  master_tag=$(cat version.json|jq -r '(.majorVersion|tostring)+"."+(.minorVersion|tostring)+"."+(.patchVersion|tostring)')
+  echo $release_version > version.json
+  git status
+  git add .
+  git commit -m 'update the release version in master, and tag'
+  git status
+  git push
+  git tag -a $master_tag -m 'update the release version in master, and tag'
+  git push --tags
+  git checkout gitflow-dev
+  git merge master
+  echo $next_version > version.json
+  git status
+  git add .
+  git status
+  git commit -m 'update the snapshot version in develop'
+  git push
+junit:
+  <<: *junit
+  docker:
+    - image: circleci/openjdk:11-jdk
+code-quality:
+  docker:
+    - image: circleci/openjdk:11-jdk
+  working_directory: ~/repo
+  steps:
+    - run:
+        name: Update system
+        command: |
+          sudo apt update
+          sudo apt upgrade
+    - checkout
+    - restore_cache:
+        keys:
+          - v1-dependencies-{{ checksum "build.gradle" }}
+          - v1-dependencies-
+    - run: ./gradlew dependencies
+    - run: ./gradlew check -x test
+    - run:
+        name: aggregate subprojects reports
+        command: |
+          find . -type d -name "reports" | sed -E 's|^(\./(.+)/build/reports)$|\1 \2|' | sort | uniq | xargs -L1 bash -c 'mkdir -p ./reports/$1 && cp -R $0/ ./reports/$1/'
+    - store_artifacts:
+        path: ./reports
+        when: always
+    - save_cache:
+        paths:
+          - ~/.gradle
+        key: v1-dependencies-{{ checksum "build.gradle" }}
+build-and-push-docker-image:
+  docker:
+    - image: "circleci/python:3.7.6"
+      environment:
+        DOCKER_BUILDKIT: "1"
+  parameters:
+    repo:
+      description: |
+        Name of the EKS repo
+      type: string
+    tag:
+      type: string
+      default: "$CIRCLE_TAG"
+  steps:
+    - checkout
+    - run:
+        command: |
+          image_tag=$(cat version.json|jq -r '(.majorVersion|tostring)+"."+(.minorVersion|tostring)+"."+(.patchVersion|tostring)')
+          echo $image_tag
+          echo "export image_tag=\"$image_tag\"" >> $BASH_ENV
+          source $BASH_ENV
+    - setup_remote_docker:
+        docker_layer_caching: true
+        version: "18.09.3"
+    - run: docker version
+    - aws-ecr/build-and-push-image:
+        checkout: false
+        account-url: AWS_ECR_ACCOUNT_URL
+        aws-access-key-id: AWS_ECR_ACCESS_KEY_ID
+        aws-secret-access-key: AWS_ECR_SECRET_ACCESS_KEY
+        region: AWS_REGION
+        repo: "<< parameters.repo >>"
+        tag: "$image_tag"
+deployment:
+  executor: aws-eks/python3
+  parameters:
+    cluster-name:
+      default: 'eks-cluster'
+      description: |
+        Name of the EKS cluster
+      type: string
+    namespace:
+      default: 'default'
+      description: |
+        The kubernetes namespace that should be used.
+      type: string
+    resource-name:
+      default: ''
+      description: Resource name in the format TYPE/NAME, e.g. deployment/nginx
+      type: string
+    repo:
+      description: |
+        Name of the EKS repo
+      type: string
+    tag:
+      type: string
+      default: "$CIRCLE_TAG"
+    get-rollout-status:
+      default: false
+      description: |
+        Get the status of the rollout.
+        This can only be used for resource types that are valid
+        for usage with `kubectl rollout` subcommands.
+      type: boolean
+  steps:
+    - aws-eks/update-kubeconfig-with-authenticator:
+        cluster-name: << parameters.cluster-name >>
+        install-kubectl: true
+        aws-region: '${AWS_REGION}'
+        authenticator-release-tag: "v0.5.1"
+        verbose: true
+    - checkout
+    - run:
+        name: Preparing Build Environment Variables
+        command: |
+          K8S_NAMESPACE="<< parameters.namespace >>"
+          K8S_RESOURCE_NAME="<< parameters.resource-name >>"
+          APP_CONTAINERS="$(kubectl get << parameters.resource-name >> -n << parameters.namespace >> -o jsonpath="{.metadata.annotations.app-containers}")"
+          APP_IMAGE_REPO="$(kubectl get << parameters.resource-name >> -n << parameters.namespace >> -o jsonpath="{.metadata.annotations.app-image-repo}")"
+          APP_IMAGE_TAG=$(cat version.json|jq -r '(.majorVersion|tostring)+"."+(.minorVersion|tostring)+"."+(.patchVersion|tostring)')
+          CONTAINER_IMAGE_UPDATES="$(echo $APP_CONTAINERS | awk 'BEGIN{RS=" "} {printf "%s=\"${APP_IMAGE_REPO}:${APP_IMAGE_TAG}\" ", $1}')"
+          echo $K8S_NAMESPACE
+          echo $K8S_RESOURCE_NAME
+          echo $APP_CONTAINERS
+          echo $APP_IMAGE_REPO
+          echo $APP_IMAGE_TAG
+          echo $CONTAINER_IMAGE_UPDATES
+          echo "export K8S_NAMESPACE=\"$K8S_NAMESPACE\"" >> $BASH_ENV
+          echo "export K8S_RESOURCE_NAME=\"K8S_RESOURCE_NAME\"" >> $BASH_ENV
+          echo "export APP_CONTAINERS=\"$APP_CONTAINERS\"" >> $BASH_ENV
+          echo "export APP_IMAGE_REPO=\"$APP_IMAGE_REPO\"" >> $BASH_ENV
+          echo "export APP_IMAGE_TAG=\"$APP_IMAGE_TAG\"" >> $BASH_ENV
+          echo "export CONTAINER_IMAGE_UPDATES=\"$CONTAINER_IMAGE_UPDATES\"" >> $BASH_ENV
+          source $BASH_ENV
+    - kubernetes/update-container-image:
+        container-image-updates: '${CONTAINER_IMAGE_UPDATES}'
+        get-rollout-status: << parameters.get-rollout-status >>
+        record: true
+        namespace: << parameters.namespace >>
+        resource-name: << parameters.resource-name >>
+workflows:
+  version: 2
+  continuous-improvement:
+    jobs:
+      - junit:
+          filters: *not-release
+      - code-quality:
+          filters: *not-release
+  continous-deployment:
+    jobs:
+      - junit:
+          filters: *master-only
+      - code-quality:
+          filters: *master-only
+      - hold-sta-gitflow:
+          type: approval
+          filters: *master-only
+      #          requires:
+      #            - junit
+      #            - code-quality
+      - gitflow:
+          filters: *master-only
+          requires:
+            - hold-sta-gitflow
+      - hold-sta-build-and-push-docker-image:
+          type: approval
+          filters: *master-only
+          requires:
+            - gitflow
+      - build-and-push-docker-image:
+          name: "build-docker-image-sta"
+          context: jira-trigger-circleci-workflow-sta
+          repo: app-jira-trigger-circleci-workflow
+          tag: develop
+          filters: *master-only
+          requires:
+            - junit
+            - code-quality
+            - hold-sta-build-and-push-docker-image
+      - hold-sta-deployment:
+          type: approval
+          filters: *master-only
+          requires:
+            - build-docker-image-sta
+      - deployment:
+          name: "deploy-staging"
+          context: jira-trigger-circleci-workflow-sta
+          cluster-name: app-staging
+          namespace: asta-ci
+          resource-name: deployment/jira-trigger-circleci-workflow-staging
+          repo: app-jira-trigger-circleci-workflow
+          tag: develop
+          filters: *master-only
+          requires:
+            - hold-sta-deployment
+      - build-and-push-docker-image:
+          name: "build-docker-image-pro"
+          context: jira-trigger-circleci-workflow-pro
+          repo: jira-trigger-circleci-workflow
+          filters: *release-only
+          requires:
+            - deploy-staging
+      - hold-prod-deployment:
+          type: approval
+          filters: *release-only
+          requires:
+            - build-docker-image-pro
+      - deployment:
+          name: "deploy-prod"
+          context: jira-trigger-circleci-workflow-pro
+          cluster-name: app-production
+          namespace: prod-monaco
+          resource-name: deployment/jira-trigger-circleci-workflow-pro
+          repo: app-jira-trigger-circleci-workflow
+          filters: *release-only
+          requires:
+            - hold-prod-deployment
+rollback:
+  jobs:
+    - hold-prod-rollback:
+        type: approval
+        filters: *release-only
+    - deployment:
+        name: "deploy-prod-rollback"
+        context: jira-trigger-circleci-workflow-pro
+        cluster-name: app-production
+        namespace: prod-monaco
+        resource-name: deployment/jira-trigger-circleci-workflow-pro
+        repo: jira-trigger-circleci-workflow
+        filters: *release-only
+        requires:
+          - hold-prod-rollback
+
+rollback:
+  jobs:
+    - hold-prod-rollback:
+        type: approval
+        filters: *release-only
+    - deployment:
+        name: "deploy-prod-rollback"
+        context: jira-trigger-circleci-workflow-pro
+        cluster-name: app-production
+        namespace: prod-monaco
+        resource-name: deployment/jira-trigger-circleci-workflow-pro
+        repo: jira-trigger-circleci-workflow
+        filters: *release-only
+        requires:
+          - hold-prod-rollback
+
+        current_version=$(cat version.json|jq .)
+
+        release_version=$(cat version.json|jq 'del(.label)')
+        next_version=$(cat version.json|jq '.patchVersion+=1')
+        master_tag=$(cat version.json|jq -r '(.majorVersion|tostring)+"."+(.minorVersion|tostring)+"."+(.patchVersion|tostring)')
+
+        echo $release_version > version.json
+        git status
+        git add .
+        git commit -m 'update the release version in master, and tag'
+        git status
+        git push
+
+        git tag -a $master_tag -m 'update the release version in master, and tag'
+        git push --tags
+
+
+        git checkout gitflow-dev
+
+        git merge master
+        echo $next_version > version.json
+        git status
+        git add .
+        git status
+        git commit -m 'update the snapshot version in develop'
+        git push

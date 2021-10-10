@@ -1,6 +1,6 @@
 buildscript {
     repositories {
-        mavenLocal()
+//        mavenLocal()
         jcenter()
     }
 
@@ -16,7 +16,7 @@ plugins {
     id 'java'
 }
 
-group = 'com.example'
+//group = 'com.example'
 sourceCompatibility = '1.8'
 
 repositories {

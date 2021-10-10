@@ -10,6 +10,9 @@
 4. R2DBC to connect H2 and Postgres, with multi DB source
 5. Spring security
 6. caching
+7. support home made gradle plugin: JGitflow to manage the versionsion(check gradle.properties and build.gradle)
+8. support CircleCI task to manage the versionsion by JGitflow (check .circle)
+
 
 # How to Start
 provide 2 DB sources, H2 or Postgreq preferred, by docker preferred
